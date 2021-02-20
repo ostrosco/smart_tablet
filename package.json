@@ -10,7 +10,6 @@
   "author": "ostrosco <ostrosco@fastmail.fm>",
   "license": "MIT",
   "dependencies": {
-    "electron": "^11.3.0",
     "neon-cli": "^0.7.1"
   },
   "scripts": {
