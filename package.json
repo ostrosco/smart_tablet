@@ -14,11 +14,11 @@
     "neon-cli": "^0.7.1"
   },
   "scripts": {
-    "build": "electron-build-env neon build --release -- --target=armv7-unknown-linux-gnueabihf",
+    "build": "electron-build-env neon build --release",
     "install": "yarn build",
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make --arch=armv7l"
+    "make": "electron-forge make"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0-beta.54",
