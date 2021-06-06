@@ -1,0 +1,24 @@
+{
+  "name": "smart_tablet",
+  "version": "0.1.0",
+  "description": "An open source program for smart tablets.",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ostrosco/smart_tablet"
+  },
+  "author": "ostrosco <ostrosco@fastmail.fm>",
+  "license": "MIT",
+  "dependencies": {
+    "dayjs": "^1.10.5",
+    "typescript": "^4.3.2"
+  },
+  "devDependencies": {
+    "ts-loader": "^9.2.2",
+    "webpack": "^5.38.1",
+    "webpack-cli": "^4.7.0"
+  },
+  "scripts": {
+    "build": "yarn exec webpack"
+  }
+}

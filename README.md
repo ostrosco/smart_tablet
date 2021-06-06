@@ -13,6 +13,5 @@ This project depends on a few things:
 To build the application:
 
 ```
-yarn
-yarn start
+cargo build --release
 ```
