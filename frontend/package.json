@@ -19,6 +19,6 @@
     "webpack-cli": "^4.7.0"
   },
   "scripts": {
-    "build": "yarn exec webpack"
+    "build": "npx webpack"
   }
 }

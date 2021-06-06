@@ -2,5 +2,4 @@ target
 **/*~
 **/node_modules
 **/.DS_Store
-frontend/dist/*
-!frontend/dist/*.html
+frontend/dist/bundle.js
