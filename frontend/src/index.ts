@@ -1,4 +1,5 @@
 import * as dayjs from 'dayjs';
+import './style.css';
 
 
 function updateTime() {
