@@ -22,14 +22,17 @@ html, body {
     font-size: 120px;
 }
 
-.clock-day-and-date {
+.clock-sub-row-1 {
     font-size: 40px;
+    display: flex;
 }
 
-.clock-day {
-    float: left;
+
+.clock-sub-row-2 {
+    font-size: 30px;
+    display: flex;
 }
 
-.clock-date {
-    float: right;
+.flex-align-right {
+    margin-left: auto;
 }
