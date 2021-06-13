@@ -1,3 +1,35 @@
+.main {
+    border: 1px solid;
+    border-color: black;
+    height: 480px;
+    width: 800px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+html, body {
+    height: 100%;
+}
+
+/* Clock styles */
+
 .clock {
     color: blue;
+}
+
+.clock-time {
+    font-size: 120px;
+}
+
+.clock-day-and-date {
+    font-size: 40px;
+}
+
+.clock-day {
+    float: left;
+}
+
+.clock-date {
+    float: right;
 }
