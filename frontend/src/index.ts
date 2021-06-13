@@ -2,6 +2,15 @@ import * as dayjs from 'dayjs';
 import * as advancedFormat from 'dayjs/plugin/advancedFormat';
 import './style.css';
 
+var apiKey: {key: string} | undefined;
+
+try {
+  apiKey = require('./openWeatherMapApiKey.json');
+  console.log(apiKey.key);
+} catch {
+  console.log('Open Weather Map API key not available.');
+}
+
 dayjs.extend(advancedFormat);
 
 if (navigator.geolocation) {
@@ -17,6 +26,23 @@ function setPositionInClock(position: GeolocationPosition): void {
   const NSStr = lat >= 0 ? 'N' : 'S';
   const EWStr = long >= 0 ? 'E' : 'W';
   document.getElementById("clock-location").innerHTML = `(${Math.abs(long).toFixed(2)}&#176;${EWStr}, ${Math.abs(lat).toFixed(2)}&#176;${NSStr})`;
+
+  // query weather (eventually refactor the control flow for get location -> get weather)
+  getWeather(position);
+}
+
+async function getWeather(pos: GeolocationPosition) {
+  if (!apiKey) {
+    console.log("Aborting weather query: no API key.");
+    return;
+  }
+
+  const queryString = `http://api.openweathermap.org/data/2.5/weather?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&appid=${apiKey.key}&units=imperial`;
+  const response = await fetch(queryString);
+  const responseJson = await response.json();
+
+  document.getElementById("clock-temperature").innerHTML = `${Math.round(responseJson.main.temp)}&#176;`
+  document.getElementById("clock-weather").innerHTML = responseJson.weather[0].description;
 }
 
 function updateTime() {
