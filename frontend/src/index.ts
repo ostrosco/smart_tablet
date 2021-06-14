@@ -4,6 +4,10 @@ import './style.css';
 
 var apiKey: {key: string} | undefined;
 
+// Main
+
+console.log('Smart Tablet main script executing.');
+
 try {
   apiKey = require('./openWeatherMapApiKey.json');
   console.log(apiKey.key);
@@ -18,6 +22,10 @@ if (navigator.geolocation) {
 } else {
   console.log("Location not supported.");
 }
+  
+window.requestAnimationFrame(updateTimeCallback);
+
+// Helper functions
 
 function setPositionInClock(position: GeolocationPosition): void {
   // eventually, we could reverse geocode the lat and long and get a location that's more meaningful to humans
@@ -79,9 +87,7 @@ function updateTime() {
   document.getElementById("clock-date").innerHTML = currentTime.format('MMMM Do');
 }
 
-let updateTimeCallback = () => {
+function updateTimeCallback(): void {
   updateTime();
   window.requestAnimationFrame(updateTimeCallback);
 }
-
-window.requestAnimationFrame(updateTimeCallback);
