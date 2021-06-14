@@ -38,8 +38,25 @@ async function getWeather(pos: GeolocationPosition) {
   }
 
   const queryString = `http://api.openweathermap.org/data/2.5/weather?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&appid=${apiKey.key}&units=imperial`;
-  const response = await fetch(queryString);
-  const responseJson = await response.json();
+
+  var response;
+  var responseJson;
+
+  try {
+    response = await fetch(queryString);
+  }
+  catch (ex) {
+    console.log("Exception caught querying weather:");
+    console.log(ex);
+  }
+
+  try {
+    responseJson = await response.json();
+  }
+  catch (ex) {
+    console.log("Exception caught converting weather response to JSON:");
+    console.log(ex);
+  }
 
   document.getElementById("clock-temperature").innerHTML = `${Math.round(responseJson.main.temp)}&#176;`
   document.getElementById("clock-weather").innerHTML = responseJson.weather[0].description;
