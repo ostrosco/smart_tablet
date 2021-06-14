@@ -43,23 +43,33 @@ async function getWeather(pos: GeolocationPosition): Promise<void> {
   var responseJson;
 
   try {
+    console.log(`Querying ${queryString} ...`);
     response = await fetch(queryString);
+    console.log('Query completed successfully.');
   }
   catch (ex) {
     console.log("Exception caught querying weather:");
     console.log(ex);
+    return;
   }
 
   try {
+    console.log('Converting query response to json...');
     responseJson = await response.json();
+    console.log('Converted successfully');
   }
   catch (ex) {
     console.log("Exception caught converting weather response to JSON:");
     console.log(ex);
+    return;
   }
+
+  console.log('Setting weather elements in DOM...');
 
   document.getElementById("clock-temperature").innerHTML = `${Math.round(responseJson.main.temp)}&#176;`
   document.getElementById("clock-weather").innerHTML = responseJson.weather[0].description;
+
+  console.log('Weather elements set successfully.');
 }
 
 function updateTime() {
