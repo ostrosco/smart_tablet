@@ -31,7 +31,7 @@ function setPositionInClock(position: GeolocationPosition): void {
   getWeather(position);
 }
 
-async function getWeather(pos: GeolocationPosition) {
+async function getWeather(pos: GeolocationPosition): Promise<void> {
   if (!apiKey) {
     console.log("Aborting weather query: no API key.");
     return;
