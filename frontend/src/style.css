@@ -13,31 +13,31 @@ html, body {
     margin: 0px;
 }
 
-/* Clock styles */
-
-.clock {
-    color: blue;
-}
-
-.clock-time {
-    font-size: 120px;
-}
-
-.clock-sub-row-1 {
-    font-size: 40px;
-    display: flex;
-}
-
-.clock-sub-row-2 {
-    font-size: 30px;
-    display: flex;
-}
-
 .flex-align-right {
     margin-left: auto;
 }
 
-.clock-weather {
+/* Clock styles */
+
+#clock {
+    color: blue;
+}
+
+#clock-time {
+    font-size: 120px;
+}
+
+#clock-sub-row-1 {
+    font-size: 40px;
+    display: flex;
+}
+
+#clock-sub-row-2 {
+    font-size: 30px;
+    display: flex;
+}
+
+#clock-weather {
     font-size: 20px;
     margin-right: 10px;
 }
