@@ -3,6 +3,7 @@ target
 **/node_modules
 **/.DS_Store
 frontend/dist/bundle.js
+frontend/dist/bundle.js.map
 
 #keep API keys out of repository
 frontend/src/openWeatherMapApiKey.json

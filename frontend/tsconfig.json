@@ -7,7 +7,8 @@
     "jsx": "react",
     "allowJs": true,
     "moduleResolution": "node",
-    "lib": [ "es2015", "DOM" ]
+    "lib": [ "es2015", "DOM" ],
+    "sourceMap": true
   },
   "include": ["src/**/*"]
 }
