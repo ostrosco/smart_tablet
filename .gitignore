@@ -2,6 +2,7 @@ target
 **/*~
 **/node_modules
 **/.DS_Store
+**/settings.json
 frontend/dist/bundle.js
 frontend/dist/bundle.js.map
 
