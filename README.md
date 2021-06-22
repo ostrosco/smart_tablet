@@ -7,6 +7,8 @@ An open source program for smart tablets.
 This project depends on a few things:
 * Rust - https://www.rust-lang.org/
 * Yarn - https://yarnpkg.com/
+* Deepspeech Native Client v0.9: https://github.com/mozilla/DeepSpeech/releases/tag/v0.9.0
+* Deepspeech Pretrained Models
 
 ## Building
 
