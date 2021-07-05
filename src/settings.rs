@@ -1,3 +1,4 @@
+use crate::weather::{TemperatureUnits, WeatherSource};
 use actix_web::{dev::BodyEncoding, http::ContentEncoding, web, HttpResponse};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -20,7 +21,7 @@ lazy_static! {
             // If the file is zero sized, we must have just created it. Just use the default
             // settings and write it to the file so that way it's populated with something.
             let settings = Settings::default();
-            write!(file, "{}", serde_json::to_string(&settings).unwrap())
+            write!(file, "{}", serde_json::to_string_pretty(&settings).unwrap())
                 .expect("couldn't write to settings file");
             RwLock::new(settings)
         } else {
@@ -32,21 +33,25 @@ lazy_static! {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum WeatherSource {
-    OpenWeather,
+pub struct WeatherSettings {
+    pub weather_source: WeatherSource,
+    pub temp_units: TemperatureUnits,
+    pub api_key: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
-    weather_source: WeatherSource,
-    api_key: String,
+    pub weather_settings: WeatherSettings,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            weather_source: WeatherSource::OpenWeather,
-            api_key: String::new(),
+            weather_settings: WeatherSettings {
+                weather_source: WeatherSource::OpenWeather,
+                temp_units: TemperatureUnits::Celsius,
+                api_key: String::new(),
+            },
         }
     }
 }
@@ -60,7 +65,7 @@ pub async fn change_settings(settings: web::Json<Settings>) -> HttpResponse {
         .truncate(true)
         .open("settings.json")
         .expect("couldn't open settings file");
-    write!(file, "{}", serde_json::to_string(&settings).unwrap())
+    write!(file, "{}", serde_json::to_string_pretty(&settings).unwrap())
         .expect("couldn't write to settings file");
     *SETTINGS.write().unwrap() = settings;
     HttpResponse::Ok().finish()
