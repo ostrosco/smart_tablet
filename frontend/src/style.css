@@ -1,11 +1,28 @@
+.content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
 .main {
     border: 1px solid;
     border-color: black;
     height: 480px;
     width: 800px;
+}
+
+.menu {
+    border: 1px solid;
+    border-color: green;
+    height: 40px;
     display: flex;
-    justify-content: center;
-    align-items: center;
+    justify-content: space-evenly;
+}
+
+.menuitem {
+    height: 40px;
+    font-size: 40px;
 }
 
 html, body {
@@ -19,8 +36,12 @@ html, body {
 
 /* Clock styles */
 
-#clock {
+.clock-blue {
     color: blue;
+}
+
+.clock-red {
+    color: red;
 }
 
 #clock-time {
