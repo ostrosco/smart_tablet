@@ -1,23 +1,10 @@
 import * as dayjs from 'dayjs';
 import * as advancedFormat from 'dayjs/plugin/advancedFormat';
-import { ContentPanel } from './contentPanel';
-import { GlobalData } from './globalData';
+import { ContentPanel } from '../contentPanel';
+import { GlobalData } from '../globalData';
+import clockTemplateHtml from './clock.template.html';
 
 dayjs.extend(advancedFormat);
-
-const clockPanelTemplate = 
-`<div id="clock" class="clock-blue">
-  <div id="clock-time"></div>
-  <div id="clock-sub-row-1">
-    <div id="clock-day"></div>
-    <div id="clock-location" class="flex-align-right"></div>
-  </div>
-  <div id="clock-sub-row-2">
-    <div id="clock-date"></div>
-    <div id="clock-weather" class="flex-align-right"></div>
-    <div id="clock-temperature"></div>
-  </div>
-</div>`;
 
 export class ClockPanel extends ContentPanel {
 
@@ -32,7 +19,7 @@ export class ClockPanel extends ContentPanel {
   }
 
   public setUp(): void {
-    document.getElementById('content').innerHTML = clockPanelTemplate;
+    document.getElementById('content').innerHTML = clockTemplateHtml;
     this._isSetUp = true;
   }
 

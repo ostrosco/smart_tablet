@@ -1,5 +1,5 @@
 import './style.css';
-import * as clock from './clock';
+import * as clock from './clock/clock';
 import { GlobalData } from './globalData';
 
 // Main
