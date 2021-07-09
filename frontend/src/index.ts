@@ -9,6 +9,8 @@ console.log('Smart Tablet main script executing.');
 let globalData = new GlobalData();
 let content = new clock.ClockPanel(globalData);
 
+content.setUp();
+
 window.requestAnimationFrame(updateTimeCallback);
 
 // Helper functions

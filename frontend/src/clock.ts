@@ -5,6 +5,20 @@ import { GlobalData } from './globalData';
 
 dayjs.extend(advancedFormat);
 
+const clockPanelTemplate = 
+`<div id="clock" class="clock-blue">
+  <div id="clock-time"></div>
+  <div id="clock-sub-row-1">
+    <div id="clock-day"></div>
+    <div id="clock-location" class="flex-align-right"></div>
+  </div>
+  <div id="clock-sub-row-2">
+    <div id="clock-date"></div>
+    <div id="clock-weather" class="flex-align-right"></div>
+    <div id="clock-temperature"></div>
+  </div>
+</div>`;
+
 export class ClockPanel extends ContentPanel {
 
   constructor (private globalData: GlobalData) {
@@ -18,14 +32,19 @@ export class ClockPanel extends ContentPanel {
   }
 
   public setUp(): void {
-    throw new Error('Method not implemented.');
+    document.getElementById('content').innerHTML = clockPanelTemplate;
+    this._isSetUp = true;
   }
 
   public tearDown(): void {
-    throw new Error('Method not implemented.');
+    // no tear down
   }
 
   public animationFrameTick(): void {
+    if (!this.isSetUp) {
+      return;
+    }
+
     var currentTime = dayjs();
     document.getElementById("clock-time").innerHTML = currentTime.format('h:mm:ss A');
     document.getElementById("clock-day").innerHTML = currentTime.format('dddd');
