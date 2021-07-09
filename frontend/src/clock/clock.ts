@@ -12,7 +12,7 @@ export class ClockPanel extends ContentPanel {
     super();
   }
 
-  private _isSetUp: boolean = false;
+  private _isSetUp = false;
 
   public get isSetUp(): boolean {
     return this._isSetUp;
@@ -32,7 +32,7 @@ export class ClockPanel extends ContentPanel {
       return;
     }
 
-    var currentTime = dayjs();
+    const currentTime = dayjs();
     document.getElementById("clock-time").innerHTML = currentTime.format('h:mm:ss A');
     document.getElementById("clock-day").innerHTML = currentTime.format('dddd');
     document.getElementById("clock-date").innerHTML = currentTime.format('MMMM Do');

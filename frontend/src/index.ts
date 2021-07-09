@@ -6,8 +6,8 @@ import { GlobalData } from './globalData';
 
 console.log('Smart Tablet main script executing.');
 
-let globalData = new GlobalData();
-let content = new clock.ClockPanel(globalData);
+const globalData = new GlobalData();
+const content = new clock.ClockPanel(globalData);
 
 content.setUp();
 
@@ -50,8 +50,8 @@ export async function getWeather(pos: GeolocationPosition): Promise<void> {
 
   const queryString = `http://api.openweathermap.org/data/2.5/weather?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&appid=${globalData.apiKey.key}&units=imperial`;
 
-  var response;
-  var responseJson;
+  let response: Response;
+  let responseJson: any;
 
   try {
     console.log(`Querying ${queryString} ...`);

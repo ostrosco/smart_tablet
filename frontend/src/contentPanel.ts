@@ -1,5 +1,3 @@
-import { GlobalData } from './globalData'
-
 export abstract class ContentPanel {
   public abstract get isSetUp(): boolean;
 

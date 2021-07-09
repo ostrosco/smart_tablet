@@ -14,7 +14,10 @@
     "typescript": "^4.3.2"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.28.2",
+    "@typescript-eslint/parser": "^4.28.2",
     "css-loader": "^5.2.6",
+    "eslint": "^7.30.0",
     "html-loader": "^2.1.2",
     "rimraf": "^3.0.2",
     "style-loader": "^2.0.0",
@@ -24,6 +27,7 @@
   },
   "scripts": {
     "build": "npx webpack",
-    "clean": "npx rimraf dist/bundle.js dist/bundle.js.map"
+    "clean": "npx rimraf dist/bundle.js dist/bundle.js.map",
+    "lint": "npx eslint src/**/*.ts"
   }
 }

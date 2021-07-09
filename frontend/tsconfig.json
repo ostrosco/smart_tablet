@@ -8,7 +8,8 @@
     "allowJs": true,
     "moduleResolution": "node",
     "lib": [ "es2015", "DOM" ],
-    "sourceMap": true
+    "sourceMap": true,
+    "noEmitOnError": true,
   },
   "include": ["src/**/*"]
 }
