@@ -27,7 +27,13 @@ lazy_static! {
         } else {
             let mut buffer = String::new();
             file.read_to_string(&mut buffer).expect("couldn't read settings file");
-            RwLock::new(serde_json::from_str(&buffer).expect("invalid settings file format"))
+            match serde_json::from_str(&buffer) {
+                Ok(settings) => RwLock::new(settings),
+                Err(e) => {
+                    eprintln!("Unable to load settings file: {:?}, using defaults", e);
+                    RwLock::new(Settings::default())
+                }
+            }
         }
     };
 }
