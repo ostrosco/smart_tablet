@@ -1,7 +1,11 @@
-use crate::weather::{TemperatureUnits, WeatherSource};
+use crate::{
+    news::{rss_news::RssNewsSource, NewsSource},
+    weather::{TemperatureUnits, WeatherSource},
+};
 use actix_web::{dev::BodyEncoding, http::ContentEncoding, web, HttpResponse};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::sync::RwLock;
@@ -46,8 +50,14 @@ pub struct WeatherSettings {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct NewsSettings {
+    pub news_sources: HashSet<NewsSource>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub weather_settings: WeatherSettings,
+    pub news_settings: NewsSettings,
 }
 
 impl Default for Settings {
@@ -57,6 +67,15 @@ impl Default for Settings {
                 weather_source: WeatherSource::OpenWeather,
                 temp_units: TemperatureUnits::Celsius,
                 api_key: String::new(),
+            },
+            news_settings: NewsSettings {
+                news_sources: [
+                    NewsSource::Rss(RssNewsSource::NPR),
+                    NewsSource::Rss(RssNewsSource::BBC),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
             },
         }
     }

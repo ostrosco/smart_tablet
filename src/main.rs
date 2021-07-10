@@ -1,6 +1,7 @@
 use actix_files::Files;
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 
+mod news;
 mod settings;
 mod weather;
 use crate::settings::SETTINGS;
@@ -16,6 +17,15 @@ async fn get_weather(info: web::Path<(f32, f32)>) -> HttpResponse {
     }
 }
 
+#[get("/news")]
+async fn get_news() -> HttpResponse {
+    let news = news::get_news().await;
+    match news {
+        Ok(news) => HttpResponse::Ok().body(serde_json::to_string(&news).unwrap()),
+        Err(err) => HttpResponse::BadRequest().body(format!("{:?}", err)),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     {
@@ -26,6 +36,7 @@ async fn main() -> std::io::Result<()> {
             .route("/settings", web::post().to(settings::change_settings))
             .route("/settings", web::get().to(settings::get_settings))
             .service(get_weather)
+            .service(get_news)
             .service(Files::new("/", "./frontend/dist").index_file("index.html"))
     })
     .bind("127.0.0.1:8080")?
