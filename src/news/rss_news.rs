@@ -11,7 +11,7 @@ const BBC_FEED: &str = "http://newsrss.bbc.co.uk/rss/newsonline_world_edition/am
 pub enum RssNewsSource {
     NPR,
     BBC,
-    Custom(String),
+    Custom(String, String),
 }
 
 impl RssNewsSource {
@@ -19,7 +19,7 @@ impl RssNewsSource {
         match self {
             RssNewsSource::NPR => NPR_FEED.into(),
             RssNewsSource::BBC => BBC_FEED.into(),
-            RssNewsSource::Custom(url) => url.into(),
+            RssNewsSource::Custom(_, url) => url.into(),
         }
     }
 
@@ -27,7 +27,10 @@ impl RssNewsSource {
         let url = self.get_url();
         let content = reqwest::get(url).await?.bytes().await?;
         let channel = Channel::read_from(&content[..])?;
-        let source_name = self.to_string();
+        let source_name = match self {
+            RssNewsSource::Custom(name, _) => name.clone(),
+            _ => self.to_string(),
+        };
         let news_items = channel
             .items
             .iter()
