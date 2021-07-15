@@ -1,6 +1,10 @@
-use crate::settings::SETTINGS;
+use crate::{settings::SETTINGS, Service};
+use actix_rt::time::interval;
+use async_trait::async_trait;
 use chrono::NaiveDate;
+use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 mod openweather;
 use openweather::{OpenWeatherCurrent, OpenWeatherForecast, OpenWeatherReport};
@@ -17,7 +21,7 @@ pub enum TemperatureUnits {
     Fahrenheit,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct WeatherReport {
     current_weather: CurrentWeather,
     forecast: Vec<Forecast>,
@@ -34,7 +38,7 @@ impl From<OpenWeatherReport> for WeatherReport {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CurrentWeather {
     temp: f32,
     humidity: f32,
@@ -51,7 +55,7 @@ impl From<OpenWeatherCurrent> for CurrentWeather {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Forecast {
     date: NaiveDate,
     min_temp: f32,
@@ -76,22 +80,58 @@ impl From<&OpenWeatherForecast> for Forecast {
     }
 }
 
-pub struct Weather();
+pub struct WeatherService {
+    tx: mpsc::Sender<WeatherReport>,
+}
 
-impl Weather {
-    pub async fn get_weather_report(
+#[async_trait]
+impl Service for WeatherService {
+    async fn start_service(&mut self) {
+        // The interval between queries of the weather API is set at the start of the application
+        // so changing the setting afterwards doesn't have any effect at the moment.
+        let polling_rate;
+        {
+            let settings = SETTINGS.read().unwrap();
+            polling_rate = settings.weather_settings.polling_rate as u64;
+        }
+        let mut interval = interval(Duration::from_secs(polling_rate));
+        loop {
+            match self.get_weather_report().await {
+                Ok(report) => {
+                    if self.tx.try_send(report).is_err() {
+                        eprintln!("Reciever has been closed.");
+                    }
+                }
+                Err(e) => eprintln!("Couldn't get weather: {:?}", e),
+            }
+            interval.tick().await;
+        }
+    }
+}
+
+impl WeatherService {
+    pub fn new(tx: mpsc::Sender<WeatherReport>) -> Self {
+        Self { tx }
+    }
+
+    /// Gets the current weather from the user's chosen weather provider. Polls current weather
+    /// settings information prior to querying for weather.
+    async fn get_weather_report(
         &self,
-        lat: f32,
-        lon: f32,
-    ) -> Result<WeatherReport, Box<dyn std::error::Error>> {
+    ) -> Result<WeatherReport, Box<dyn std::error::Error + Send + Sync>> {
         let weather_source;
         let api_key;
         let temp_units;
+        let lat;
+        let lon;
         {
             let settings = SETTINGS.read().unwrap();
-            weather_source = settings.weather_settings.weather_source.clone();
-            api_key = settings.weather_settings.api_key.clone();
-            temp_units = settings.weather_settings.temp_units.clone();
+            let weather_settings = &settings.weather_settings;
+            weather_source = weather_settings.weather_source.clone();
+            api_key = weather_settings.api_key.clone();
+            temp_units = weather_settings.temp_units.clone();
+            lon = weather_settings.lon;
+            lat = weather_settings.lat;
         }
         match weather_source {
             WeatherSource::OpenWeather => {

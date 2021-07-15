@@ -46,12 +46,18 @@ lazy_static! {
 pub struct WeatherSettings {
     pub weather_source: WeatherSource,
     pub temp_units: TemperatureUnits,
+    // Time between API queries in minutes.
+    pub polling_rate: u32,
     pub api_key: String,
+    pub lat: f32,
+    pub lon: f32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NewsSettings {
     pub news_sources: HashSet<NewsSource>,
+    // Time between API queries in minutes.
+    pub polling_rate: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -66,7 +72,10 @@ impl Default for Settings {
             weather_settings: WeatherSettings {
                 weather_source: WeatherSource::OpenWeather,
                 temp_units: TemperatureUnits::Celsius,
+                polling_rate: 60,
                 api_key: String::new(),
+                lat: 0.0,
+                lon: 0.0,
             },
             news_settings: NewsSettings {
                 news_sources: [
@@ -76,6 +85,7 @@ impl Default for Settings {
                 .iter()
                 .cloned()
                 .collect(),
+                polling_rate: 60,
             },
         }
     }

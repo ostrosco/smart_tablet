@@ -11,15 +11,18 @@ default = ["static_ssl"]
 static_ssl = ["openssl/vendored"]
 
 [dependencies]
+actix-rt = "2.0"
 actix-web = "4.0.0-beta.8"
 actix-files = "0.6.0-beta.6"
+async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 deepspeech = "0.9"
 lazy_static = "1.4" 
+futures = "0.3"
 openssl = "0.10"
 reqwest = { version = "0.11", features = ["json"] }
 rss = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.21", features = ["derive"] }
-tokio = "1.6"
+tokio = { version = "1.8", features = ["sync"] }
