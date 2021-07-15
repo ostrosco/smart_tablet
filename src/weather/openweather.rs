@@ -118,7 +118,7 @@ pub async fn get_weather(
     lon: f32,
     temp_units: TemperatureUnits,
     api_key: String,
-) -> Result<WeatherReport, Box<dyn std::error::Error>> {
+) -> Result<WeatherReport, Box<dyn std::error::Error + Send + Sync>> {
     let units = match temp_units {
         TemperatureUnits::Kelvin => "standard",
         TemperatureUnits::Celsius => "metric",
