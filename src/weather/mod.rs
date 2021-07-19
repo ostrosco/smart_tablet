@@ -1,4 +1,4 @@
-use crate::{settings::SETTINGS, Service};
+use crate::{service::Service, settings::SETTINGS};
 use actix_rt::time::interval;
 use async_trait::async_trait;
 use chrono::NaiveDate;
@@ -80,12 +80,23 @@ impl From<&OpenWeatherForecast> for Forecast {
     }
 }
 
+#[derive(Clone)]
 pub struct WeatherService {
-    tx: mpsc::Sender<WeatherReport>,
+    tx: Option<mpsc::Sender<Box<dyn erased_serde::Serialize + Send + Sync>>>,
+}
+
+impl WeatherService {
+    pub fn new() -> Self {
+        Self { tx: None }
+    }
 }
 
 #[async_trait]
 impl Service for WeatherService {
+    fn set_sender(&mut self, tx: mpsc::Sender<Box<dyn erased_serde::Serialize + Send + Sync>>) {
+        self.tx = Some(tx);
+    }
+
     async fn start_service(&mut self) {
         // The interval between queries of the weather API is set at the start of the application
         // so changing the setting afterwards doesn't have any effect at the moment.
@@ -98,8 +109,12 @@ impl Service for WeatherService {
         loop {
             match self.get_weather_report().await {
                 Ok(report) => {
-                    if self.tx.try_send(report).is_err() {
-                        eprintln!("Reciever has been closed.");
+                    if let Some(tx) = &mut self.tx {
+                        if tx.try_send(Box::new(report)).is_err() {
+                            eprintln!("Reciever has been closed.");
+                        }
+                    } else {
+                        eprintln!("News transmitter not set.");
                     }
                 }
                 Err(e) => eprintln!("Couldn't get weather: {:?}", e),
@@ -107,13 +122,13 @@ impl Service for WeatherService {
             interval.tick().await;
         }
     }
+
+    fn get_service_name(&self) -> String {
+        WeatherService::get_service_name()
+    }
 }
 
 impl WeatherService {
-    pub fn new(tx: mpsc::Sender<WeatherReport>) -> Self {
-        Self { tx }
-    }
-
     /// Gets the current weather from the user's chosen weather provider. Polls current weather
     /// settings information prior to querying for weather.
     async fn get_weather_report(
@@ -138,5 +153,9 @@ impl WeatherService {
                 openweather::get_weather(lat, lon, temp_units, api_key).await
             }
         }
+    }
+
+    pub fn get_service_name() -> String {
+        String::from("Weather")
     }
 }
