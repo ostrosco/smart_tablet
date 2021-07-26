@@ -2,6 +2,7 @@ import './style.css';
 import * as clock from './clock/clock';
 import { GlobalData } from './globalData';
 import { Weather } from './api-types/weather';
+import { Settings } from './api-types/settings';
 
 // Main
 
@@ -29,7 +30,7 @@ export async function getWeather(): Promise<void> {
   const queryString = "http://localhost:8080/weather";
 
   let response: Response;
-  let responseJson: any;
+  let responseJson: Weather;
 
   try {
     console.log(`Querying ${queryString} ...`);
@@ -44,7 +45,7 @@ export async function getWeather(): Promise<void> {
 
   try {
     console.log('Converting query response to json...');
-    responseJson = await response.json();
+    responseJson = new Weather(await response.json());
     console.log('Converted successfully');
   }
   catch (ex) {
@@ -53,14 +54,14 @@ export async function getWeather(): Promise<void> {
     return;
   }
 
-  globalData.weather = new Weather(responseJson);
+  globalData.weather = responseJson;
 }
 
 export async function getLocation(): Promise<void> {
   const queryString = "http://localhost:8080/settings";
 
   let response: Response;
-  let responseJson: any;
+  let responseJson: Settings;
 
   try {
     console.log(`Querying ${queryString} ...`);
@@ -75,7 +76,7 @@ export async function getLocation(): Promise<void> {
 
   try {
     console.log('Converting query response to json...');
-    responseJson = await response.json();
+    responseJson = await response.json() as Settings;
     console.log('Converted successfully');
   }
   catch (ex) {
