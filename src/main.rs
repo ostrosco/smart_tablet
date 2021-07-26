@@ -18,7 +18,7 @@ use crate::weather::WeatherService;
 async fn get_weather(service_handler: web::Data<Arc<ServiceHandler>>) -> HttpResponse {
     let weather_report = service_handler.get_latest_result(WeatherService::get_service_name());
     match weather_report {
-        Some(report) => HttpResponse::Ok().body(report),
+        Some(report) => HttpResponse::Ok().content_type("application/json").body(report),
         None => HttpResponse::NoContent().body("No weather available at this time"),
     }
 }

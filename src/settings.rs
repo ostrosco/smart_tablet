@@ -113,5 +113,5 @@ pub async fn get_settings() -> HttpResponse {
     HttpResponse::Ok()
         .encoding(ContentEncoding::Br)
         .content_type("application/json")
-        .json(&settings_resp)
+        .body(&settings_resp)
 }
