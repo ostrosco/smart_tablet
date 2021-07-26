@@ -1,6 +1,10 @@
+import { Weather } from "./api-types/weather";
+
 export class GlobalData {
   apiKey?: {key: string};
 
-  location?: GeolocationPosition;
-  weather?: any;
+  lat?: number;
+  lon?: number;
+  
+  weather?: Weather;
 }

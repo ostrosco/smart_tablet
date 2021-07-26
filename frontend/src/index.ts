@@ -1,6 +1,7 @@
 import './style.css';
 import * as clock from './clock/clock';
 import { GlobalData } from './globalData';
+import { Weather } from './api-types/weather';
 
 // Main
 
@@ -9,46 +10,23 @@ console.log('Smart Tablet main script executing.');
 const globalData = new GlobalData();
 const content = new clock.ClockPanel(globalData);
 
+getLocation();
+getWeather();
+
 content.setUp();
 
 window.requestAnimationFrame(updateTimeCallback);
 
-// Helper functions
 
 function updateTimeCallback(): void {
-  content?.animationFrameTick();
+  content.animationFrameTick();
   window.requestAnimationFrame(updateTimeCallback);
 }
 
+// Helper functions
 
-try {
-  globalData.apiKey = require('./openWeatherMapApiKey.json');
-  console.log(globalData.apiKey.key);
-} catch {
-  console.log('Open Weather Map API key not available.');
-}
-
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(setPositionInClock);
-} else {
-  console.log("Location not supported.");
-}
-
-export function setPositionInClock(position: GeolocationPosition): void {
-  // eventually, we could reverse geocode the lat and long and get a location that's more meaningful to humans
-  globalData.location = position;
-
-  // query weather (eventually refactor the control flow for get location -> get weather)
-  getWeather(position);
-}
-
-export async function getWeather(pos: GeolocationPosition): Promise<void> {
-  if (!globalData.apiKey) {
-    console.log("Aborting weather query: no API key.");
-    return;
-  }
-
-  const queryString = `http://api.openweathermap.org/data/2.5/weather?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&appid=${globalData.apiKey.key}&units=imperial`;
+export async function getWeather(): Promise<void> {
+  const queryString = "http://localhost:8080/weather";
 
   let response: Response;
   let responseJson: any;
@@ -75,5 +53,37 @@ export async function getWeather(pos: GeolocationPosition): Promise<void> {
     return;
   }
 
-  globalData.weather = responseJson;
+  globalData.weather = new Weather(responseJson);
+}
+
+export async function getLocation(): Promise<void> {
+  const queryString = "http://localhost:8080/settings";
+
+  let response: Response;
+  let responseJson: any;
+
+  try {
+    console.log(`Querying ${queryString} ...`);
+    response = await fetch(queryString);
+    console.log('Query completed successfully.');
+  }
+  catch (ex) {
+    console.log("Exception caught querying weather:");
+    console.log(ex);
+    return;
+  }
+
+  try {
+    console.log('Converting query response to json...');
+    responseJson = await response.json();
+    console.log('Converted successfully');
+  }
+  catch (ex) {
+    console.log("Exception caught converting weather response to JSON:");
+    console.log(ex);
+    return;
+  }
+
+  globalData.lat = responseJson.weather_settings.lat;
+  globalData.lon = responseJson.weather_settings.lon;
 }
