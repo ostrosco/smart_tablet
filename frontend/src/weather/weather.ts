@@ -20,6 +20,16 @@ export class WeatherPanel extends ContentPanel {
 
   public setUp(): void {
     document.getElementById('content').innerHTML = weatherTemplateHtml;
+
+    let weatherElement = document.getElementById('weather');
+
+    for (let forecast of this.globalData.weather?.forecast) { // TODO: null check
+      let forecastRow = document.createElement("p");
+      forecastRow.innerHTML = `${forecast.date}: High ${forecast.max_temp}&#176; Low ${forecast.min_temp}&#176; ${forecast.description}`;
+
+      weatherElement.appendChild(forecastRow);
+    }
+
     this._isSetUp = true;
   }
 
