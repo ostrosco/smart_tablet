@@ -1,27 +1,43 @@
 import './style.css';
-import * as clock from './clock/clock';
+import { ClockPanel } from './clock/clock';
+import { WeatherPanel } from './weather/weather';
 import { GlobalData } from './globalData';
 import { Weather } from './api-types/weather';
 import { Settings } from './api-types/settings';
+import { ContentPanel } from './contentPanel';
 
 // Main
 
 console.log('Smart Tablet main script executing.');
 
 const globalData = new GlobalData();
-const content = new clock.ClockPanel(globalData);
+let currentPanel: ContentPanel;
 
 getLocation();
 getWeather();
 
-content.setUp();
+changeTabTo('clock');
 
 window.requestAnimationFrame(updateTimeCallback);
 
+document.getElementById("clockMenuButton").onclick = (e: MouseEvent) => changeTabTo('clock');
+document.getElementById("weatherMenuButton").onclick = (e: MouseEvent) => changeTabTo('weather');
 
 function updateTimeCallback(): void {
-  content.animationFrameTick();
+  currentPanel.animationFrameTick();
   window.requestAnimationFrame(updateTimeCallback);
+}
+
+function changeTabTo(tab: string) : void {
+  if (tab === 'clock') {
+    currentPanel?.tearDown();
+    currentPanel = new ClockPanel(globalData);
+    currentPanel.setUp();
+  } else if (tab === 'weather') {
+    currentPanel?.tearDown();
+    currentPanel = new WeatherPanel(globalData);
+    currentPanel.setUp();
+  }
 }
 
 // Helper functions
