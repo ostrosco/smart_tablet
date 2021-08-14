@@ -3,8 +3,10 @@ use async_trait::async_trait;
 use erased_serde::Serialize;
 use futures::channel::mpsc;
 use futures::stream::StreamExt;
+use futures::SinkExt;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[async_trait]
 /// A trait to represent services that asynchronously query information from the outside world
@@ -29,12 +31,6 @@ pub struct ServiceHandler {
     latest_results: Arc<Mutex<HashMap<String, Box<dyn Serialize + Send + Sync>>>>,
 }
 
-impl Default for ServiceHandler {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ServiceHandler {
     pub fn new() -> Self {
         Self {
@@ -44,7 +40,12 @@ impl ServiceHandler {
 
     /// Take ownership of the service and spawn two tasks on the arbiter: one that runs the service
     /// indefiitely and one to receive its results and store it into the latest_results HashMap.
-    pub fn start_service(&self, arbiter: &mut Arbiter, mut service: Box<dyn Service + Send>) {
+    pub fn start_service(
+        &self,
+        arbiter: &mut Arbiter,
+        update_tx: mpsc::UnboundedSender<String>,
+        mut service: Box<dyn Service + Send>,
+    ) {
         let (tx, rx) = mpsc::channel(1);
         service.set_sender(tx);
         let service_name = service.get_service_name();
@@ -52,8 +53,15 @@ impl ServiceHandler {
         arbiter.spawn(async move { service.start_service().await });
         arbiter.spawn(async move {
             rx.for_each(|wr| async {
-                let mut map = latest_results.lock().unwrap();
+                // We do two things with the result we receive:
+                // - we store it into the latest_results hashmap in case something later directly
+                //   queries our latest result.
+                // - we send it out to be transmitted to the websocket to go to the frontend.
+                let mut update_tx = update_tx.clone();
+                let mut map = latest_results.lock().await;
+                let result = serde_json::to_string(&wr).unwrap();
                 map.insert(service_name.clone(), wr);
+                update_tx.send(result).await.unwrap();
             })
             .await
         });
@@ -61,14 +69,8 @@ impl ServiceHandler {
 
     /// Returns the latest result for a given service or None if no results have been received for
     /// a given service.
-    pub fn get_latest_result(&self, service_name: String) -> Option<String> {
-        let map = self.latest_results.lock().unwrap();
-        let result = map.get(&service_name);
-        result.map(|res| serde_json::to_string(res).unwrap())
-    }
-
-    /// Returns all of the current results that are currently stored in the service handler.
-    pub fn get_all_results(&self) -> Arc<Mutex<HashMap<String, Box<dyn Serialize + Send + Sync>>>> {
-        self.latest_results.clone()
+    pub async fn get_latest_result(&self, service_name: String) -> Option<String> {
+        let map = self.latest_results.lock().await;
+        map.get(&service_name).map(|res| serde_json::to_string(&res).unwrap())
     }
 }
