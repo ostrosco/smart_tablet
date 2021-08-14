@@ -1,6 +1,6 @@
 use actix_files::Files;
 use actix_rt::Arbiter;
-use actix_web::{get, web, App, HttpResponse, HttpServer};
+use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use std::sync::Arc;
 
 mod news;
@@ -18,7 +18,9 @@ use crate::weather::WeatherService;
 async fn get_weather(service_handler: web::Data<Arc<ServiceHandler>>) -> HttpResponse {
     let weather_report = service_handler.get_latest_result(WeatherService::get_service_name());
     match weather_report {
-        Some(report) => HttpResponse::Ok().content_type("application/json").body(report),
+        Some(report) => HttpResponse::Ok()
+            .content_type("application/json")
+            .body(report),
         None => HttpResponse::NoContent().body("No weather available at this time"),
     }
 }
@@ -33,6 +35,12 @@ async fn get_news(service_handler: web::Data<Arc<ServiceHandler>>) -> HttpRespon
         None => HttpResponse::NoContent().body("No news available at this time"),
     }
 }
+
+/*
+async fn update(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
+
+}
+*/
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

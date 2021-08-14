@@ -66,4 +66,9 @@ impl ServiceHandler {
         let result = map.get(&service_name);
         result.map(|res| serde_json::to_string(res).unwrap())
     }
+
+    /// Returns all of the current results that are currently stored in the service handler.
+    pub fn get_all_results(&self) -> Arc<Mutex<HashMap<String, Box<dyn Serialize + Send + Sync>>>> {
+        self.latest_results.clone()
+    }
 }
