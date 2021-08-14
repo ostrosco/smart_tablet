@@ -11,10 +11,11 @@ default = ["static_ssl"]
 static_ssl = ["openssl/vendored"]
 
 [dependencies]
-actix-rt = "2.0"
-actix-web = "4.0.0-beta.8"
 actix-files = "0.6.0-beta.6"
+actix-rt = "2.0"
 async-trait = "0.1"
+actix-web = "4.0.0-beta.8"
+actix-web-actors = "4.0.0-beta.6"
 chrono = { version = "0.4", features = ["serde"] }
 deepspeech = "0.9"
 erased-serde = "0.3"
