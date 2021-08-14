@@ -3,6 +3,7 @@ import * as advancedFormat from 'dayjs/plugin/advancedFormat';
 import { ContentPanel } from '../contentPanel';
 import { GlobalData } from '../globalData';
 import clockTemplateHtml from './clock.template.html';
+import { isNullOrUndefined } from '../helpers';
 
 dayjs.extend(advancedFormat);
 
@@ -37,7 +38,7 @@ export class ClockPanel extends ContentPanel {
     document.getElementById("clock-day").innerHTML = currentTime.format('dddd');
     document.getElementById("clock-date").innerHTML = currentTime.format('MMMM Do');
 
-    if(this.globalData.lat && this.globalData.lon) {
+    if(!isNullOrUndefined(this.globalData.lat) && !isNullOrUndefined(this.globalData.lon)) {
       const lat = this.globalData.lat;
       const long = this.globalData.lon;
       const NSStr = lat >= 0 ? 'N' : 'S';
