@@ -61,7 +61,7 @@ export async function getWeather(): Promise<void> {
 
   try {
     console.log('Converting query response to json...');
-    responseJson = new Weather(await response.json());
+    responseJson = new Weather((await response.json()).weather);
     console.log('Converted successfully');
   }
   catch (ex) {
