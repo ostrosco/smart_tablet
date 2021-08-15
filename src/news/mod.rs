@@ -1,3 +1,4 @@
+use crate::message::UpdateMessage;
 use crate::{service::Service, settings::SETTINGS};
 use actix_rt::time::interval;
 use async_trait::async_trait;
@@ -68,8 +69,9 @@ impl Service for NewsService {
                     Err(_) => continue,
                 }
             }
+            let news_message = UpdateMessage::News(news_list);
             if let Some(tx) = &mut self.tx {
-                if tx.try_send(Box::new(news_list)).is_err() {
+                if tx.try_send(Box::new(news_message)).is_err() {
                     eprintln!("News receiver has been closed somehow.");
                 }
             } else {

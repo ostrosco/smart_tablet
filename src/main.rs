@@ -11,6 +11,7 @@ use tokio_tungstenite::{
     tungstenite::{self, Message},
 };
 
+mod message;
 mod news;
 mod service;
 mod settings;
