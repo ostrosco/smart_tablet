@@ -8,6 +8,7 @@ const NPR_FEED: &str = "http://www.npr.org/rss/rss.php?id=1001";
 const BBC_FEED: &str = "http://newsrss.bbc.co.uk/rss/newsonline_world_edition/americas/rss.xml";
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq, ToString)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum RssNewsSource {
     NPR,
     BBC,

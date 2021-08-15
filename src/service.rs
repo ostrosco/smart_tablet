@@ -71,6 +71,7 @@ impl ServiceHandler {
     /// a given service.
     pub async fn get_latest_result(&self, service_name: String) -> Option<String> {
         let map = self.latest_results.lock().await;
-        map.get(&service_name).map(|res| serde_json::to_string(&res).unwrap())
+        map.get(&service_name)
+            .map(|res| serde_json::to_string(&res).unwrap())
     }
 }

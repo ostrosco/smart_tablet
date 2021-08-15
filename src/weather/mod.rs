@@ -1,4 +1,4 @@
-use crate::{service::Service, settings::SETTINGS};
+use crate::{message::UpdateMessage, service::Service, settings::SETTINGS};
 use actix_rt::time::interval;
 use async_trait::async_trait;
 use chrono::NaiveDate;
@@ -110,7 +110,8 @@ impl Service for WeatherService {
             match self.get_weather_report().await {
                 Ok(report) => {
                     if let Some(tx) = &mut self.tx {
-                        if tx.try_send(Box::new(report)).is_err() {
+                        let weather_message = UpdateMessage::Weather(report);
+                        if tx.try_send(Box::new(weather_message)).is_err() {
                             eprintln!("Reciever has been closed.");
                         }
                     } else {
