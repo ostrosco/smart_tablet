@@ -17,6 +17,7 @@ actix-rt = "2.0"
 async-trait = "0.1"
 actix-web = "4.0.0-beta.8"
 chrono = { version = "0.4", features = ["serde"] }
+cpal = "0.13"
 deepspeech = "0.9"
 dyn-clone = "1.0"
 erased-serde = "0.3"
