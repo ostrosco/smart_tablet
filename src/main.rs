@@ -1,10 +1,8 @@
 use actix_files::Files;
 use actix_rt::Arbiter;
 use actix_web::{get, web, App, HttpResponse, HttpServer};
-use futures::channel::mpsc;
-use futures::{SinkExt, StreamExt};
-use std::net::SocketAddr;
-use std::sync::Arc;
+use futures::{channel::mpsc, SinkExt, StreamExt};
+use std::{net::SocketAddr, sync::Arc, thread};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{
     accept_async,
@@ -15,6 +13,7 @@ mod message;
 mod news;
 mod service;
 mod settings;
+mod voice;
 mod weather;
 use crate::news::NewsService;
 use crate::service::ServiceHandler;
@@ -125,6 +124,10 @@ async fn main() -> std::io::Result<()> {
         Box::new(news::NewsService::new()),
     );
     let service_handler = Arc::new(service_handler);
+
+    thread::spawn(|| {
+        voice::listen().expect("Error handling voice: {:?}");
+    });
 
     HttpServer::new(move || {
         App::new()

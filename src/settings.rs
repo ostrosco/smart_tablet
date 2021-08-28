@@ -5,10 +5,13 @@ use crate::{
 use actix_web::{dev::BodyEncoding, http::ContentEncoding, web, HttpResponse};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::fs::OpenOptions;
-use std::io::{Read, Write};
-use std::sync::RwLock;
+use std::{
+    collections::HashSet,
+    fs::OpenOptions,
+    io::{Read, Write},
+    path::PathBuf,
+    sync::RwLock,
+};
 
 lazy_static! {
     // The main settings for all user-controlled settings. Settings are stored in a local
@@ -61,9 +64,15 @@ pub struct NewsSettings {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct VoiceSettings {
+    pub model_path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub weather_settings: WeatherSettings,
     pub news_settings: NewsSettings,
+    pub voice_settings: VoiceSettings,
 }
 
 impl Default for Settings {
@@ -72,7 +81,7 @@ impl Default for Settings {
             weather_settings: WeatherSettings {
                 weather_source: WeatherSource::OpenWeather,
                 temp_units: TemperatureUnits::Celsius,
-                polling_rate: 60,
+                polling_rate: 3600,
                 api_key: String::new(),
                 lat: 0.0,
                 lon: 0.0,
@@ -85,7 +94,10 @@ impl Default for Settings {
                 .iter()
                 .cloned()
                 .collect(),
-                polling_rate: 60,
+                polling_rate: 3600,
+            },
+            voice_settings: VoiceSettings {
+                model_path: PathBuf::new(),
             },
         }
     }
