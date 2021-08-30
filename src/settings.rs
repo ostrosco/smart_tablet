@@ -66,6 +66,7 @@ pub struct NewsSettings {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct VoiceSettings {
     pub model_path: PathBuf,
+    pub scorer_path: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -98,6 +99,7 @@ impl Default for Settings {
             },
             voice_settings: VoiceSettings {
                 model_path: PathBuf::new(),
+                scorer_path: PathBuf::new(),
             },
         }
     }
