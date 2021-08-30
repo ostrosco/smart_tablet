@@ -1,10 +1,10 @@
 use crate::settings::SETTINGS;
+use crossbeam::channel::{Receiver, unbounded};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use nnnoiseless::DenoiseState;
 use std::{
-    collections::VecDeque,
     ops::Neg,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex},
     thread,
     time::Instant,
 };
@@ -19,7 +19,7 @@ pub fn listen() -> Result<(), Box<dyn std::error::Error>> {
     let device = host
         .default_output_device()
         .ok_or("no output device detected")?;
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = unbounded();
 
     // Once we know we have a microphone, load up the Deepspeech models. We need the expected
     // sample rate for our model so we can confirm that the default microphone in this system
@@ -69,7 +69,7 @@ pub fn listen() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Receive, process, and transcribe received audio from the microphone.
 ///
-fn process_audio(model: Arc<Mutex<Model>>, rx: mpsc::Receiver<Vec<f32>>, sample_rate: u32) {
+fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<f32>>, sample_rate: u32) {
     // These are magic numbers for the recording. These vary depending on the background noise, the
     // quality of the microphone, and the cadence in which the user speaks. We'll need to figure
     // out a way to calculate these or at least make them configurable.
@@ -88,20 +88,20 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: mpsc::Receiver<Vec<f32>>, sample_
     // practical purposes.
     let secs_of_audio = 10;
     let queue_length = sample_rate as usize * secs_of_audio;
-    let mut audio_until_pause: VecDeque<f32> = VecDeque::with_capacity(queue_length);
+    let mut audio_until_pause: Vec<f32> = Vec::with_capacity(queue_length);
 
-    rx.iter().for_each(move |samps| {
-        if audio_until_pause.len() >= queue_length {
-            audio_until_pause.drain(0..samps.len());
-        }
-        audio_until_pause.extend(&samps);
-
+    rx.iter().for_each(move |mut samps| {
         let (max_amplitude, min_amplitude) =
             samps.iter().fold((std::f32::NAN, std::f32::NAN), |m, v| {
                 (m.0.max(*v), m.1.min(*v))
             });
         let is_silent =
             max_amplitude < silence_amplitude && min_amplitude > silence_amplitude.neg();
+
+        if audio_until_pause.len() >= queue_length {
+            audio_until_pause.drain(0..samps.len());
+        }
+        audio_until_pause.append(&mut samps);
 
         if is_silent && silence_has_broken {
             match silence_start {
@@ -111,7 +111,7 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: mpsc::Receiver<Vec<f32>>, sample_
                         // Denoise the audio and scale the values to the range of an i16,
                         // converting to i16 at the same time. Deepspeech can only operate on i16
                         // values.
-                        let denoised_audio = denoise(audio_until_pause.make_contiguous())
+                        let denoised_audio = denoise(&audio_until_pause)
                             .iter()
                             .map(|f| (*f * std::i16::MAX as f32) as i16)
                             .collect::<Vec<i16>>();
