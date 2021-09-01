@@ -68,6 +68,13 @@ pub fn listen() -> Result<(), Box<dyn std::error::Error>> {
 /// Receive, process, and transcribe received audio from the microphone.
 ///
 fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
+    // A constant that keeps track of the number of samples we're going to hold on to.
+    const SAMPLE_HISTORY_LEN: u32 = 3;
+
+    // A constant that keeps track of how long of silence do we wait before attempting to
+    // transcribe audio with Deepspeech.
+    const NUM_SILENT_SAMPLES: u32 = 3;
+
     // Since this thread owns the model and will be using it exclusively, we'll just lock the mutex
     // at the beginning and don't bother letting go.
     let model = &mut model.lock().unwrap().0;
@@ -83,7 +90,11 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
     let mut silent_count = 0;
     let mut speech_found = false;
 
-    rx.iter().for_each(move |samps| {
+    let silence_level = 1000;
+    let mut prev_sample = vec![];
+    let mut num_samples = 0;
+
+    rx.iter().for_each(move |mut samps| {
         // Since we're dropping the stream after we finish a decode, we need to check each
         // iteration to see if the stream needs to be re-created.
         if stream.is_none() {
@@ -92,37 +103,65 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
 
         // Since short words seem to be missed here, we look for _any_ detection in our stream to
         // decide whether or not this gets placed in the stream for processing.
-        let is_speech = samps
-            .chunks_exact(160)
-            .any(|frame| vad.is_voice_segment(frame) == Ok(true));
+        let (min_amplitude, max_amplitude) = samps
+            .iter()
+            .fold((std::i16::MAX, std::i16::MIN), |acc, samp| {
+                (*samp.min(&acc.0), *samp.max(&acc.1))
+            });
 
-        if is_speech {
-            silent_count = 0;
-            speech_found = true;
-        } else {
+        // Don't bother trying voice activity detection unless we're over some amplitude.
+        if min_amplitude > -silence_level && max_amplitude < silence_level && !speech_found {
+            // Though we aren't going any voice activity detection, Deepspeech will very frequently
+            // drop the first word in a phrase if there's no silence preceeding it. To that end, we
+            // save off up to SAMPLE_HISTORY_LEN number of samples and append when we start picking
+            // up something worth trying voice detection on.
+            if num_samples == 0 {
+                prev_sample = samps.to_vec();
+                num_samples += 1;
+            } else if num_samples < SAMPLE_HISTORY_LEN {
+                prev_sample.append(&mut samps);
+                num_samples += 1;
+            } else {
+                prev_sample.drain(0..samps.len());
+                prev_sample.append(&mut samps);
+            }
             silent_count += 1;
+        } else {
+            prev_sample.append(&mut samps);
+            let is_speech = prev_sample
+                .chunks_exact(160)
+                .any(|frame| vad.is_voice_segment(frame) == Ok(true));
+
+            if is_speech {
+                silent_count = 0;
+                speech_found = true;
+            } else {
+                silent_count += 1;
+            }
         }
 
         // If speech has been found at all, start dumping data into the stream...even the silence.
         // This results in a much better parse by Deepspeech.
         if speech_found {
-            stream.as_mut().unwrap().feed_audio(&samps);
+            stream.as_mut().unwrap().feed_audio(&prev_sample);
+            prev_sample.clear();
+            num_samples = 0;
         }
 
         // The silent count here is a magic number we're using that we found mostly through
         // experimentation. At some point we need to figure out a better way to handle this.
-        if silent_count >= 3 && speech_found {
+        if silent_count >= NUM_SILENT_SAMPLES && speech_found {
             let mut stream_taken = stream.take().unwrap();
             // Due to the rather shocking false positive rate of webrtc-vad we're running into,
             // We have this as a stopgap. Do an intermediate decode and if Deepspeech says we've
             // got nothing, just continue collecting data into the stream.
             if let Ok(val) = stream_taken.intermediate_decode() {
                 if val != String::new() {
-                    println!("{:?}", val);
+                    println!("Decoded text: {:?}", val);
                     drop(stream_taken);
-                    speech_found = false;
                     silent_count = 0;
                 }
+                speech_found = false;
             }
         }
     });
