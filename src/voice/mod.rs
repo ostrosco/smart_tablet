@@ -125,7 +125,9 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
                 prev_sample.drain(0..samps.len());
                 prev_sample.append(&mut samps);
             }
-            silent_count += 1;
+            if silent_count <= NUM_SILENT_SAMPLES {
+                silent_count += 1;
+            }
         } else {
             prev_sample.append(&mut samps);
             let is_speech = prev_sample
@@ -135,7 +137,7 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
             if is_speech {
                 silent_count = 0;
                 speech_found = true;
-            } else {
+            } else if silent_count <= NUM_SILENT_SAMPLES {
                 silent_count += 1;
             }
         }
