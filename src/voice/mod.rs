@@ -1,4 +1,4 @@
-use crate::settings::SETTINGS;
+use crate::settings::{Language, SETTINGS};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam::channel::{unbounded, Receiver};
 use std::{
@@ -6,6 +6,8 @@ use std::{
     thread,
 };
 use webrtc_vad::Vad;
+
+mod command;
 
 // Wrap up the Deepspeech stream so we can send it to our thread.
 struct Model(deepspeech::Model);
@@ -24,10 +26,12 @@ pub fn listen() -> Result<(), Box<dyn std::error::Error>> {
     // can support it.
     let model_path;
     let scorer_path;
+    let language;
     {
         let settings = SETTINGS.read().unwrap();
         model_path = settings.voice_settings.model_path.clone();
         scorer_path = settings.voice_settings.scorer_path.clone();
+        language = settings.language;
     }
     let mut model = deepspeech::Model::load_from_files(&model_path)?;
     model.enable_external_scorer(&scorer_path)?;
@@ -59,7 +63,7 @@ pub fn listen() -> Result<(), Box<dyn std::error::Error>> {
     input_stream.play()?;
 
     let handle = thread::spawn(move || {
-        process_audio(model, rx);
+        process_audio(model, rx, language);
     });
     handle.join().unwrap();
     Ok(())
@@ -67,13 +71,16 @@ pub fn listen() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Receive, process, and transcribe received audio from the microphone.
 ///
-fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
+fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>, language: Language) {
     // A constant that keeps track of the number of samples we're going to hold on to.
     const SAMPLE_HISTORY_LEN: u32 = 3;
 
     // A constant that keeps track of how long of silence do we wait before attempting to
     // transcribe audio with Deepspeech.
     const NUM_SILENT_SAMPLES: u32 = 3;
+
+    let command_parser =
+        command::CommandParser::init(language).expect("Can't load the command file");
 
     // Since this thread owns the model and will be using it exclusively, we'll just lock the mutex
     // at the beginning and don't bother letting go.
@@ -161,6 +168,7 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
             if let Ok(val) = stream_taken.intermediate_decode() {
                 if val != String::new() {
                     println!("Decoded text: {:?}", val);
+                    println!("Command: {:?}", command_parser.parse(&val));
                     drop(stream_taken);
                     silent_count = 0;
                 }

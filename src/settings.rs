@@ -45,6 +45,14 @@ lazy_static! {
     };
 }
 
+// Sorry, I'm only supporting English as it's the only language I know and the Deepspeech models
+// are only trained for English. I'm adding the hooks for other language support if sometime in the
+// future someone else would like to add support.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+pub enum Language {
+    English,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WeatherSettings {
     pub weather_source: WeatherSource,
@@ -74,6 +82,7 @@ pub struct Settings {
     pub weather_settings: WeatherSettings,
     pub news_settings: NewsSettings,
     pub voice_settings: VoiceSettings,
+    pub language: Language,
 }
 
 impl Default for Settings {
@@ -101,6 +110,7 @@ impl Default for Settings {
                 model_path: PathBuf::new(),
                 scorer_path: PathBuf::new(),
             },
+            language: Language::English,
         }
     }
 }
