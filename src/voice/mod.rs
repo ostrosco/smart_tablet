@@ -84,7 +84,7 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
     // We know that Deepspeech only works with 16kHz data so we hard code it here.
     let mut vad = Vad::new_with_rate_and_mode(
         webrtc_vad::SampleRate::Rate16kHz,
-        webrtc_vad::VadMode::Quality,
+        webrtc_vad::VadMode::Aggressive,
     );
 
     let mut silent_count = 0;
@@ -118,7 +118,7 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
             if num_samples == 0 {
                 prev_sample = samps.to_vec();
                 num_samples += 1;
-            } else if num_samples < SAMPLE_HISTORY_LEN {
+            } else if num_samples <= SAMPLE_HISTORY_LEN {
                 prev_sample.append(&mut samps);
                 num_samples += 1;
             } else {
@@ -152,6 +152,7 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>) {
         // experimentation. At some point we need to figure out a better way to handle this.
         if silent_count >= NUM_SILENT_SAMPLES && speech_found {
             let mut stream_taken = stream.take().unwrap();
+
             // Due to the rather shocking false positive rate of webrtc-vad we're running into,
             // We have this as a stopgap. Do an intermediate decode and if Deepspeech says we've
             // got nothing, just continue collecting data into the stream.
