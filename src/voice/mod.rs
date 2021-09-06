@@ -8,6 +8,7 @@ use std::{
 use webrtc_vad::Vad;
 
 mod command;
+mod number;
 
 // Wrap up the Deepspeech stream so we can send it to our thread.
 struct Model(deepspeech::Model);
