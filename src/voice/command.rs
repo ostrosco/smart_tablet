@@ -77,7 +77,6 @@ impl CommandParser {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

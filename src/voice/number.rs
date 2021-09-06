@@ -7,7 +7,7 @@ lazy_static! {
     //
     // TODO: In the future, this should be a file someplace that we load in based on the given
     // language akin to the commands_{LANG}.json file.
-    static ref NUMBER_MAP: HashMap<String, i64> = {
+    static ref DIGIT_MAP: HashMap<String, i64> = {
         let mut m = HashMap::new();
         m.insert("zero".into(), 0);
         m.insert("one".into(), 1);
@@ -19,6 +19,11 @@ lazy_static! {
         m.insert("seven".into(), 7);
         m.insert("eight".into(), 8);
         m.insert("nine".into(), 9);
+        m
+    };
+
+    static ref NUMBER_MAP: HashMap<String, i64> = {
+        let mut m = HashMap::new();
         m.insert("ten".into(), 10);
         m.insert("eleven".into(), 11);
         m.insert("twelve".into(), 12);
@@ -74,9 +79,29 @@ pub fn parse_number_from_voice(command: &str) -> Option<i64> {
 
     let mut last_prefix = None;
     let mut last_magnitude = None;
+    let mut last_number_was_digit = false;
 
     for word in command.split_whitespace() {
-        if let Some(val) = NUMBER_MAP.get(word) {
+        if let Some(val) = DIGIT_MAP.get(word) {
+            // If we have two digits in a row, that very likely means that the user is saying each
+            // individual digit. We're going to parse it as such since otherwise it doesn't make
+            // sense.
+            if last_number_was_digit {
+                return parse_digits_from_command(command);
+            }
+
+            // These are numbers that are prefixes but not the start of a chain, i.e. we shouldn't
+            // expect two of these types of numbers in a row.
+            if !number_chain {
+                total = total.or(Some(0)).map(|x| x + curr_number.unwrap_or(0));
+                curr_number = Some(*val);
+            } else {
+                curr_number = curr_number.or(Some(0)).map(|x| x + *val);
+            }
+            found_prefix = true;
+            last_prefix = Some(*val);
+            last_number_was_digit = true;
+        } else if let Some(val) = NUMBER_MAP.get(word) {
             // These are numbers that are prefixes but not the start of a chain, i.e. we shouldn't
             // expect two of these types of numbers in a row.
             if !number_chain {
@@ -92,16 +117,17 @@ pub fn parse_number_from_voice(command: &str) -> Option<i64> {
             // for the purposes of construction. In English, these are the -ty numbers.
             curr_number = curr_number.or(Some(0)).map(|x| x + *val);
             number_chain = true;
+            last_number_was_digit = false;
         } else if let Some(val) = MAGNITUDE_MAP.get(word) {
             let mut val = *val;
             if last_magnitude.is_none() {
                 last_magnitude = Some(val);
             }
 
-            // This is to handle the special case when users may chain numbers together without chain
-            // words. This is most common in cases like "one hundred twenty thousand". So we keep
-            // track of the magnitudes in the numbers and note if the magnitudes have grown in the
-            // number. This is an indicator that our parse so far is wrong so we need to correct
+            // This is to handle the special case when users may chain numbers together without
+            // chain words. This is most common in cases like "one hundred twenty thousand". So we
+            // keep track of the magnitudes in the numbers and note if the magnitudes have grown in
+            // the number. This is an indicator that our parse so far is wrong so we need to correct
             // for it now. Again, this may be a English-specific issue so keep an eye on this.
             if last_magnitude.as_ref() < Some(&val) && !number_chain {
                 let lp = last_prefix.unwrap_or(0);
@@ -122,14 +148,17 @@ pub fn parse_number_from_voice(command: &str) -> Option<i64> {
 
             last_magnitude = Some(val);
             number_chain = false;
+            last_number_was_digit = false;
         } else if NUMBER_CHAIN_WORDS.contains(&word.to_string()) {
             // Since sometimes, numbers are chained together with special words ("and" in English),
             // we handle that case here to know that we're not done constructing this part of the
             // number.
             number_chain = true;
+            last_number_was_digit = false;
         } else {
             found_prefix = false;
             number_chain = false;
+            last_number_was_digit = false;
         }
     }
 
@@ -140,6 +169,22 @@ pub fn parse_number_from_voice(command: &str) -> Option<i64> {
     }
 
     total
+}
+
+/// A parsing function for when users say digits in order, such as "one two three" instead of
+/// something like "one hundred and twenty three".
+fn parse_digits_from_command(command: &str) -> Option<i64> {
+    let mut digit_str = String::new();
+    for word in command.split_whitespace() {
+        if let Some(val) = DIGIT_MAP.get(word) {
+            digit_str.push_str(&val.to_string());
+        }
+    }
+    if digit_str.is_empty() {
+        None
+    } else {
+        digit_str.parse::<i64>().ok()
+    }
 }
 
 #[cfg(test)]
@@ -218,5 +263,11 @@ mod test {
             parse_number_from_voice("one hundred twenty thousand five hundred six"),
             Some(120_506)
         );
+    }
+
+    #[test]
+    fn parse_digits() {
+        assert_eq!(parse_number_from_voice("one two three four"), Some(1234));
+        assert_eq!(parse_number_from_voice("zero zero zero seven"), Some(7));
     }
 }
