@@ -46,6 +46,7 @@ impl CommandParser {
             .split_whitespace()
             .find_map(|cmd| self.command_map.get(cmd));
 
+        println!("Command type: {:?}", command_type);
         if let Some(cmd_type) = command_type {
             match cmd_type {
                 CommandType::Weather => Some(Command::Weather),
@@ -62,11 +63,11 @@ impl CommandParser {
     fn parse_timer(&self, command: &str) -> Option<Command> {
         if let Some(number) = parse_number_from_voice(command) {
             let number: u64 = number.try_into().unwrap();
-            if command.contains("seconds") {
+            if command.contains("second") {
                 Some(Command::Timer(Duration::from_secs(number)))
-            } else if command.contains("minutes") {
+            } else if command.contains("minute") {
                 Some(Command::Timer(Duration::from_secs(number * 60)))
-            } else if command.contains("hours") {
+            } else if command.contains("hour") {
                 Some(Command::Timer(Duration::from_secs(number * 60 * 60)))
             } else {
                 None

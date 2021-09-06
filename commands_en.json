@@ -1,5 +1,6 @@
 {
     "weather": "Weather",
     "news": "News",
-    "timer": "Timer"
+    "timer": "Timer",
+    "time": "Timer"
 }

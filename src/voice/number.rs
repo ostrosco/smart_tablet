@@ -72,6 +72,9 @@ pub fn parse_number_from_voice(command: &str) -> Option<i64> {
     let mut found_prefix = false;
     let mut number_chain = false;
 
+    let mut last_prefix = None;
+    let mut last_magnitude = None;
+
     for word in command.split_whitespace() {
         if let Some(val) = NUMBER_MAP.get(word) {
             // These are numbers that are prefixes but not the start of a chain, i.e. we shouldn't
@@ -83,21 +86,41 @@ pub fn parse_number_from_voice(command: &str) -> Option<i64> {
                 curr_number = curr_number.or(Some(0)).map(|x| x + *val);
             }
             found_prefix = true;
+            last_prefix = Some(*val);
         } else if let Some(val) = CHAINS_MAP.get(word) {
             // This is reserved for numbers that aren't magnitudes but should be treated as chains
             // for the purposes of construction. In English, these are the -ty numbers.
             curr_number = curr_number.or(Some(0)).map(|x| x + *val);
             number_chain = true;
         } else if let Some(val) = MAGNITUDE_MAP.get(word) {
+            let mut val = *val;
+            if last_magnitude.is_none() {
+                last_magnitude = Some(val);
+            }
+
+            // This is to handle the special case when users may chain numbers together without chain
+            // words. This is most common in cases like "one hundred twenty thousand". So we keep
+            // track of the magnitudes in the numbers and note if the magnitudes have grown in the
+            // number. This is an indicator that our parse so far is wrong so we need to correct
+            // for it now. Again, this may be a English-specific issue so keep an eye on this.
+            if last_magnitude.as_ref() < Some(&val) && !number_chain {
+                let lp = last_prefix.unwrap_or(0);
+                let lm = last_magnitude.unwrap_or(0);
+                total = total.or(Some(0)).map(|x| x - (lp * lm));
+                val *= lm;
+                curr_number = curr_number.or(Some(0)).map(|x| x + (lp * val));
+            } else if found_prefix {
+                curr_number = curr_number.or(Some(0)).map(|x| x * val);
             // In English, we'll often say something like "a thousand" to indicate one thousand. So
             // we need to handle that special case here where a magnitude is used without a
             // preceeding number.
-            if found_prefix {
-                curr_number = curr_number.or(Some(0)).map(|x| x * *val);
             } else {
-                curr_number = Some(*val);
+                curr_number = Some(val);
+                last_prefix = Some(1);
                 found_prefix = true;
             }
+
+            last_magnitude = Some(val);
             number_chain = false;
         } else if NUMBER_CHAIN_WORDS.contains(&word.to_string()) {
             // Since sometimes, numbers are chained together with special words ("and" in English),
@@ -163,8 +186,7 @@ mod test {
     }
 
     #[test]
-    fn parse_hundred_thousand() {
-        // Test with our chain word.
+    fn parse_flipped_magnitudes() {
         assert_eq!(
             parse_number_from_voice(
                 "one million five hundred and thirty six thousand one hundred and two"
@@ -172,7 +194,6 @@ mod test {
             Some(1_536_102)
         );
 
-        // Test without our chain word.
         assert_eq!(
             parse_number_from_voice(
                 "one million five hundred thirty six thousand one hundred and two"
@@ -184,13 +205,18 @@ mod test {
             parse_number_from_voice("five hundred thirty thousand"),
             Some(530_000)
         );
-    }
 
-    #[test]
-    fn parse_with_chains() {
         assert_eq!(
             parse_number_from_voice("one hundred million and five"),
             Some(1e8 as i64 + 5)
+        );
+    }
+
+    #[test]
+    fn parse_without_chain_words() {
+        assert_eq!(
+            parse_number_from_voice("one hundred twenty thousand five hundred six"),
+            Some(120_506)
         );
     }
 }
