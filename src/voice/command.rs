@@ -1,6 +1,7 @@
+use super::number::parse_number_from_voice;
 use crate::settings::Language;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs::File, io::Read, time::Duration};
+use std::{collections::HashMap, convert::TryInto, fs::File, io::Read, time::Duration};
 
 /// An enumeration of all possible command types that the system knows how to execute from voice
 /// commands. This is definitely a non-exhausive list.
@@ -45,11 +46,30 @@ impl CommandParser {
             .split_whitespace()
             .find_map(|cmd| self.command_map.get(cmd));
 
-        if let Some(command) = command_type {
-            match command {
+        if let Some(cmd_type) = command_type {
+            match cmd_type {
                 CommandType::Weather => Some(Command::Weather),
                 CommandType::News => Some(Command::News),
-                _ => None,
+                CommandType::Timer => self.parse_timer(command),
+            }
+        } else {
+            None
+        }
+    }
+
+    // Again, this is going to be English centric for now until we figure out a sane way to keep
+    // the effective mapping between words and what they mean.
+    fn parse_timer(&self, command: &str) -> Option<Command> {
+        if let Some(number) = parse_number_from_voice(command) {
+            let number: u64 = number.try_into().unwrap();
+            if command.contains("seconds") {
+                Some(Command::Timer(Duration::from_secs(number)))
+            } else if command.contains("minutes") {
+                Some(Command::Timer(Duration::from_secs(number * 60)))
+            } else if command.contains("hours") {
+                Some(Command::Timer(Duration::from_secs(number * 60 * 60)))
+            } else {
+                None
             }
         } else {
             None
@@ -75,5 +95,24 @@ mod tests {
         // In this case, we have multiple commands as once. Our naive parsing should just pick up
         // the first one.
         assert_eq!(command_parser.parse("weather news"), Some(Command::Weather));
+    }
+
+    #[test]
+    fn test_timer() {
+        let language = Language::English;
+        let command_parser = CommandParser::init(language).expect("No command.json file found");
+        assert_eq!(
+            command_parser.parse("set timer for thirty hours"),
+            Some(Command::Timer(Duration::from_secs(30 * 60 * 60)))
+        );
+        assert_eq!(
+            command_parser.parse("set timer for fourty two minutes"),
+            Some(Command::Timer(Duration::from_secs(42 * 60)))
+        );
+        assert_eq!(
+            command_parser
+                .parse("set timer for one hundred and twelve thousand and sixty two seconds"),
+            Some(Command::Timer(Duration::from_secs(112_062)))
+        );
     }
 }
