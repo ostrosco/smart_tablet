@@ -13,7 +13,7 @@ console.log('Smart Tablet main script executing.');
 const globalData = new GlobalData();
 let currentPanel: ContentPanel;
 
-getLocation();
+getSettings();
 
 changeTabTo('clock');
 
@@ -72,7 +72,7 @@ function changeTabTo(tab: string) : void {
 
 // Helper functions
 
-export async function getLocation(): Promise<void> {
+export async function getSettings(): Promise<void> {
   const queryString = "http://localhost:8080/settings";
 
   let response: Response;
@@ -100,6 +100,13 @@ export async function getLocation(): Promise<void> {
     return;
   }
 
+  // TODO: store settings structure somewhere
   globalData.lat = responseJson.weather_settings.lat;
   globalData.lon = responseJson.weather_settings.lon;
+  globalData.theme = responseJson.theme;
+
+  if (globalData.theme) {
+    const bodyElement = document.getElementsByTagName('body')[0];
+    bodyElement.className = globalData.theme;
+  }
 }

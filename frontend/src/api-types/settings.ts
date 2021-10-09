@@ -1,6 +1,7 @@
 export class Settings {
   weather_settings: WeatherSettings;
   news_settings: NewsSettings;
+  theme: string;
 }
 
 export class WeatherSettings {

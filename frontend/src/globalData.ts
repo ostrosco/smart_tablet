@@ -7,4 +7,6 @@ export class GlobalData {
   lon?: number;
   
   weather?: Weather;
+
+  theme?: string;
 }
