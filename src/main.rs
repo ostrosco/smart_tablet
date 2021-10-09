@@ -2,7 +2,7 @@ use actix_files::Files;
 use actix_rt::Arbiter;
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use std::{net::SocketAddr, sync::Arc, thread};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{
     accept_async,
@@ -123,11 +123,13 @@ async fn main() -> std::io::Result<()> {
         update_tx.clone(),
         Box::new(news::NewsService::new()),
     );
-    let service_handler = Arc::new(service_handler);
+    service_handler.start_service(
+        &mut arbiter,
+        update_tx.clone(),
+        Box::new(voice::CommandService::new()),
+    );
 
-    thread::spawn(|| {
-        voice::listen().expect("Error handling voice: {:?}");
-    });
+    let service_handler = Arc::new(service_handler);
 
     HttpServer::new(move || {
         App::new()

@@ -1,10 +1,17 @@
-use crate::settings::{Language, SETTINGS};
+use crate::{
+    service::Service,
+    settings::{Language, SETTINGS},
+};
+use async_trait::async_trait;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam::channel::{unbounded, Receiver};
+use erased_serde::Serialize;
+use futures::channel::mpsc;
 use std::{
     sync::{Arc, Mutex},
     thread,
 };
+use tokio::task;
 use webrtc_vad::Vad;
 
 mod command;
@@ -14,7 +21,36 @@ mod number;
 struct Model(deepspeech::Model);
 unsafe impl Send for Model {}
 
-pub fn listen() -> Result<(), Box<dyn std::error::Error>> {
+pub struct CommandService {
+    tx: Option<mpsc::Sender<Box<dyn Serialize + Send + Sync>>>,
+}
+
+impl CommandService {
+    pub fn new() -> Self {
+        Self { tx: None }
+    }
+}
+
+#[async_trait]
+impl Service for CommandService {
+    fn set_sender(&mut self, tx: mpsc::Sender<Box<dyn Serialize + Send + Sync>>) {
+        self.tx = Some(tx);
+    }
+
+    async fn start_service(&mut self) {
+        task::spawn_blocking(move || {
+            listen().expect("Error handling voice");
+        })
+        .await
+        .unwrap();
+    }
+
+    fn get_service_name(&self) -> String {
+        String::from("Command")
+    }
+}
+
+fn listen() -> Result<(), Box<dyn std::error::Error>> {
     // Configure the microphone for listening.
     let host = cpal::default_host();
     let device = host
