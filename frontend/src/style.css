@@ -40,10 +40,6 @@ html, body {
     color: blue;
 }
 
-.clock-red {
-    color: red;
-}
-
 #clock-time {
     font-size: 120px;
 }
@@ -61,4 +57,44 @@ html, body {
 #clock-weather {
     font-size: 20px;
     margin-right: 10px;
+}
+
+/* Theming */
+
+/* Light Theme */
+.lightTheme .main {
+    border-color: black;
+}
+
+.lightTheme .menu {
+    border-color: green;
+}
+
+.lightTheme .clock-blue {
+    color: blue;
+}
+
+.lightTheme .menuitem {
+    color: black;
+}
+
+/* Dark Theme */
+body.darkTheme {
+    background-color: #212121;
+}
+
+.darkTheme .main {
+    border-color: black;
+}
+
+.darkTheme .menu {
+    border-color: black;
+}
+
+.darkTheme .clock-blue {
+    color:#91198E;
+}
+
+.darkTheme .menuitem {
+    color: #636363;
 }
