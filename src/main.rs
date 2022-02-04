@@ -112,7 +112,8 @@ async fn main() -> std::io::Result<()> {
     });
 
     // Start up all the relevant services in the service handler.
-    let service_handler = ServiceHandler::new();
+    let (request_tx, request_rx) = mpsc::unbounded();
+    let mut service_handler = ServiceHandler::new(request_rx);
     service_handler.start_service(
         &mut arbiter,
         update_tx.clone(),
@@ -126,8 +127,9 @@ async fn main() -> std::io::Result<()> {
     service_handler.start_service(
         &mut arbiter,
         update_tx.clone(),
-        Box::new(voice::CommandService::new()),
+        Box::new(voice::CommandService::new(request_tx)),
     );
+    service_handler.start_handler(&mut arbiter);
 
     let service_handler = Arc::new(service_handler);
 

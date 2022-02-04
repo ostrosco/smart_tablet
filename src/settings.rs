@@ -2,7 +2,7 @@ use crate::{
     news::{rss_news::RssNewsSource, NewsSource},
     weather::{TemperatureUnits, WeatherSource},
 };
-use actix_web::{dev::BodyEncoding, http::ContentEncoding, web, HttpResponse};
+use actix_web::{http::header::ContentEncoding, web, HttpResponse};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -135,7 +135,6 @@ pub async fn get_settings() -> HttpResponse {
     let settings = SETTINGS.read().unwrap();
     let settings_resp = serde_json::to_string(&*settings).unwrap();
     HttpResponse::Ok()
-        .encoding(ContentEncoding::Br)
         .content_type("application/json")
-        .body(&settings_resp)
+        .body(settings_resp)
 }

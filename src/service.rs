@@ -29,12 +29,16 @@ pub trait Service {
 /// eventually be serialized and sent to the front end.
 pub struct ServiceHandler {
     latest_results: Arc<Mutex<HashMap<String, Box<dyn Serialize + Send + Sync>>>>,
+    request_rx: Option<mpsc::UnboundedReceiver<(String, mpsc::UnboundedSender<Option<String>>)>>,
 }
 
 impl ServiceHandler {
-    pub fn new() -> Self {
+    pub fn new(
+        request_rx: mpsc::UnboundedReceiver<(String, mpsc::UnboundedSender<Option<String>>)>,
+    ) -> Self {
         Self {
             latest_results: Arc::new(Mutex::new(HashMap::new())),
+            request_rx: Some(request_rx),
         }
     }
 
@@ -64,6 +68,22 @@ impl ServiceHandler {
                 update_tx.send(result).await.unwrap();
             })
             .await
+        });
+    }
+
+    pub fn start_handler(&mut self, arbiter: &mut Arbiter) {
+        let latest_results = self.latest_results.clone();
+        let mut request_rx = self.request_rx.take().unwrap();
+        arbiter.spawn(async move {
+            loop {
+                let msg = request_rx.next().await.unwrap();
+                let (service_name, mut sender_tx) = msg;
+                let map = latest_results.lock().await;
+                let result = map
+                    .get(&service_name)
+                    .map(|res| serde_json::to_string(&res).unwrap());
+                sender_tx.send(result.clone()).await.unwrap();
+            }
         });
     }
 

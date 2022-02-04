@@ -1,4 +1,5 @@
 use crate::{
+    voice::command::Command,
     service::Service,
     settings::{Language, SETTINGS},
 };
@@ -6,12 +7,13 @@ use async_trait::async_trait;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam::channel::{unbounded, Receiver};
 use erased_serde::Serialize;
-use futures::channel::mpsc;
+use futures::{channel::mpsc as futures_mpsc, SinkExt, StreamExt};
 use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use tokio::task;
+use tokio::{self, sync::mpsc, task};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use webrtc_vad::Vad;
 
 mod command;
@@ -21,28 +23,70 @@ mod number;
 struct Model(deepspeech::Model);
 unsafe impl Send for Model {}
 
-pub struct CommandService {
-    tx: Option<mpsc::Sender<Box<dyn Serialize + Send + Sync>>>,
-}
+type RequestTx =
+    futures_mpsc::UnboundedSender<(String, futures_mpsc::UnboundedSender<Option<String>>)>;
 
-impl CommandService {
-    pub fn new() -> Self {
-        Self { tx: None }
-    }
+pub struct CommandService {
+    request_tx: RequestTx,
+    tx: Option<futures_mpsc::Sender<Box<dyn Serialize + Send + Sync>>>,
 }
 
 #[async_trait]
 impl Service for CommandService {
-    fn set_sender(&mut self, tx: mpsc::Sender<Box<dyn Serialize + Send + Sync>>) {
+    fn set_sender(&mut self, tx: futures_mpsc::Sender<Box<dyn Serialize + Send + Sync>>) {
         self.tx = Some(tx);
     }
 
     async fn start_service(&mut self) {
-        task::spawn_blocking(move || {
-            listen().expect("Error handling voice");
-        })
-        .await
-        .unwrap();
+        let (audio_samples_tx, audio_samples_rx) = mpsc::unbounded_channel();
+        let (command_tx, command_rx) = mpsc::unbounded_channel();
+
+        // Once we know we have a microphone, load up the Deepspeech models. We need the expected
+        // sample rate for our model so we can confirm that the default microphone in this system
+        // can support it.
+        let model_path;
+        let scorer_path;
+        let language;
+        {
+            let settings = SETTINGS.read().unwrap();
+            model_path = settings.voice_settings.model_path.clone();
+            scorer_path = settings.voice_settings.scorer_path.clone();
+            if !std::path::Path::new(&model_path).exists() {
+                eprintln!("model path is invalid");
+                return;
+            }
+            if !std::path::Path::new(&scorer_path).exists() {
+                eprintln!("scorer path is invalid");
+                return;
+            }
+            language = settings.language;
+        }
+        let sample_rate;
+        {
+            let mut model =
+                deepspeech::Model::load_from_files(&model_path).expect("couldn't load models");
+            sample_rate = model.get_sample_rate() as u32;
+        }
+
+        thread::spawn(move || match listen(audio_samples_tx, sample_rate) {
+            Ok(_) => eprintln!("Voice listener terminated without an error, but shouldn't"),
+            Err(e) => eprintln!("Voice listener terminated with error: {:?}", e),
+        });
+
+        thread::spawn(move || {
+            match process_audio(
+                &model_path,
+                &scorer_path,
+                audio_samples_rx,
+                command_tx,
+                language,
+            ) {
+                Ok(_) => eprintln!("Voice processor terminated without an error, but shouldn't"),
+                Err(e) => eprintln!("Voice processor terminated with error: {:?}", e),
+            }
+        });
+
+        self.run_commands(command_rx).await;
     }
 
     fn get_service_name(&self) -> String {
@@ -50,29 +94,32 @@ impl Service for CommandService {
     }
 }
 
-fn listen() -> Result<(), Box<dyn std::error::Error>> {
+impl CommandService {
+    pub fn new(request_tx: RequestTx) -> Self {
+        Self {
+            tx: None,
+            request_tx,
+        }
+    }
+
+    async fn run_commands(&self, command_rx: mpsc::UnboundedReceiver<Command>) {
+        let mut command_rx = UnboundedReceiverStream::new(command_rx);
+        command_rx.for_each(|cmd| async move {
+            let result = cmd.run_command(self.request_tx.clone()).await;
+            println!("result: {:?}", result);
+        }).await;
+    }
+}
+
+fn listen(
+    tx: mpsc::UnboundedSender<Vec<i16>>,
+    sample_rate: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Configure the microphone for listening.
     let host = cpal::default_host();
     let device = host
         .default_output_device()
         .ok_or("no output device detected")?;
-    let (tx, rx) = unbounded();
-
-    // Once we know we have a microphone, load up the Deepspeech models. We need the expected
-    // sample rate for our model so we can confirm that the default microphone in this system
-    // can support it.
-    let model_path;
-    let scorer_path;
-    let language;
-    {
-        let settings = SETTINGS.read().unwrap();
-        model_path = settings.voice_settings.model_path.clone();
-        scorer_path = settings.voice_settings.scorer_path.clone();
-        language = settings.language;
-    }
-    let mut model = deepspeech::Model::load_from_files(&model_path)?;
-    model.enable_external_scorer(&scorer_path)?;
-    let expected_sample_rate = model.get_sample_rate() as u32;
 
     // The Rust bindings of Deepspeech only support mono i16 samples according to the
     // documentation for the model.
@@ -80,10 +127,9 @@ fn listen() -> Result<(), Box<dyn std::error::Error>> {
     let config = supported_configs
         .find(|c| c.channels() == 1 && c.sample_format() == cpal::SampleFormat::I16)
         .ok_or("no supported format for microphone")?
-        .with_sample_rate(cpal::SampleRate(expected_sample_rate))
+        .with_sample_rate(cpal::SampleRate(sample_rate))
         .config();
     println!("config: {:?}", config);
-    let model = Arc::new(Mutex::new(Model(model)));
 
     // Start the input stream. In order to avoid issues with latency processing the samples, we
     // have the stream just send the data out across a channel versus doing the processing in the
@@ -98,17 +144,18 @@ fn listen() -> Result<(), Box<dyn std::error::Error>> {
         },
     )?;
     input_stream.play()?;
-
-    let handle = thread::spawn(move || {
-        process_audio(model, rx, language);
-    });
-    handle.join().unwrap();
-    Ok(())
+    loop {}
 }
 
 /// Receive, process, and transcribe received audio from the microphone.
 ///
-fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>, language: Language) {
+fn process_audio(
+    model_path: &std::path::Path,
+    scorer_path: &std::path::Path,
+    mut audio_samples_rx: mpsc::UnboundedReceiver<Vec<i16>>,
+    command_tx: mpsc::UnboundedSender<Command>,
+    language: Language,
+) -> Result<(), Box<dyn std::error::Error>> {
     // A constant that keeps track of the number of samples we're going to hold on to.
     const SAMPLE_HISTORY_LEN: u32 = 3;
 
@@ -116,14 +163,11 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>, language: Lan
     // transcribe audio with Deepspeech.
     const NUM_SILENT_SAMPLES: u32 = 3;
 
-    let command_parser =
-        command::CommandParser::init(language).expect("Can't load the command file");
-
-    // Since this thread owns the model and will be using it exclusively, we'll just lock the mutex
-    // at the beginning and don't bother letting go.
-    let model = &mut model.lock().unwrap().0;
+    let command_parser = command::CommandParser::init(language)?;
 
     let mut stream = None;
+    let mut model = deepspeech::Model::load_from_files(model_path)?;
+    model.enable_external_scorer(scorer_path)?;
 
     // We know that Deepspeech only works with 16kHz data so we hard code it here.
     let mut vad = Vad::new_with_rate_and_mode(
@@ -138,11 +182,12 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>, language: Lan
     let mut prev_sample = vec![];
     let mut num_samples = 0;
 
-    rx.iter().for_each(move |mut samps| {
+    loop {
+        let mut samps = audio_samples_rx.blocking_recv().ok_or("audio sample stream has closed")?;
         // Since we're dropping the stream after we finish a decode, we need to check each
         // iteration to see if the stream needs to be re-created.
         if stream.is_none() {
-            stream = Some(model.create_stream().expect("couldn't create stream"));
+            stream = Some(model.create_stream()?);
         }
 
         // Since short words seem to be missed here, we look for _any_ detection in our stream to
@@ -205,12 +250,16 @@ fn process_audio(model: Arc<Mutex<Model>>, rx: Receiver<Vec<i16>>, language: Lan
             if let Ok(val) = stream_taken.intermediate_decode() {
                 if val != String::new() {
                     println!("Decoded text: {:?}", val);
-                    println!("Command: {:?}", command_parser.parse(&val));
+                    let command = command_parser.parse(&val);
+                    println!("Command: {:?}", command);
                     drop(stream_taken);
                     silent_count = 0;
+                    if let Some(cmd) = command {
+                        command_tx.send(cmd);
+                    }
                 }
                 speech_found = false;
             }
         }
-    });
+    }
 }

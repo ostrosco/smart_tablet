@@ -1,7 +1,10 @@
 use super::number::parse_number_from_voice;
-use crate::settings::Language;
+use crate::{
+    news::NewsService, service::ServiceHandler, settings::Language, weather::WeatherService,
+};
+use futures::{channel::mpsc, future, SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, convert::TryInto, fs::File, io::Read, time::Duration};
+use std::{collections::HashMap, convert::TryInto, fs::File, io::Read, sync::Arc, time::Duration};
 
 /// An enumeration of all possible command types that the system knows how to execute from voice
 /// commands. This is definitely a non-exhausive list.
@@ -17,6 +20,27 @@ pub enum Command {
     Weather,
     News,
     Timer(Duration),
+}
+
+impl Command {
+    pub async fn run_command(
+        &self,
+        mut request_tx: mpsc::UnboundedSender<(String, mpsc::UnboundedSender<Option<String>>)>,
+    ) {
+        let service_name = match &self {
+            Command::Weather => Some(WeatherService::get_service_name()),
+            Command::News => Some(NewsService::get_service_name()),
+            Command::Timer(_) => None,
+        };
+        if let Some(service) = service_name {
+            let (tx, mut rx) = mpsc::unbounded();
+            request_tx.send((service, tx)).await;
+            let response = rx.next().await;
+            println!("Command result: {:?}", response);
+        }
+    }
+
+    async fn start_timer(&self) {}
 }
 
 pub struct CommandParser {
