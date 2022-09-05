@@ -7,4 +7,5 @@ use serde::{Deserialize, Serialize};
 pub enum UpdateMessage {
     Weather(weather::WeatherReport),
     News(Vec<news::NewsItem>),
+    Error(String),
 }

@@ -25,7 +25,7 @@ use crate::weather::WeatherService;
 /// available.
 async fn get_weather(service_handler: web::Data<Arc<ServiceHandler>>) -> HttpResponse {
     let weather_report = service_handler
-        .get_latest_result(WeatherService::get_service_name())
+        .get_latest_result(WeatherService::get_name())
         .await;
     match weather_report {
         Some(report) => HttpResponse::Ok()
@@ -40,7 +40,7 @@ async fn get_weather(service_handler: web::Data<Arc<ServiceHandler>>) -> HttpRes
 /// available.
 async fn get_news(service_handler: web::Data<Arc<ServiceHandler>>) -> HttpResponse {
     let news = service_handler
-        .get_latest_result(NewsService::get_service_name())
+        .get_latest_result(NewsService::get_name())
         .await;
     match news {
         Some(news) => HttpResponse::Ok().body(news),
@@ -111,26 +111,19 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
-    // Start up all the relevant services in the service handler.
-    let (request_tx, request_rx) = mpsc::unbounded();
-    let mut service_handler = ServiceHandler::new(request_rx);
-    service_handler.start_service(
-        &mut arbiter,
-        update_tx.clone(),
-        Box::new(weather::WeatherService::new()),
-    );
-    service_handler.start_service(
-        &mut arbiter,
-        update_tx.clone(),
-        Box::new(news::NewsService::new()),
-    );
-    service_handler.start_service(
-        &mut arbiter,
-        update_tx.clone(),
-        Box::new(voice::CommandService::new(request_tx)),
-    );
-    service_handler.start_handler(&mut arbiter);
+    // This serves as a way for the UI to specifically request a refesh on specific data,
+    // though the actual hooks for this are not yet in place.
+    let (_request_tx, request_rx) = mpsc::unbounded();
 
+    // Start up all the relevant services in the service handler.
+    let mut service_handler = ServiceHandler::new(request_rx);
+    let news_service = news::NewsService::new();
+    let weather_service = weather::WeatherService::new();
+
+    service_handler.start_service(&mut arbiter, update_tx.clone(), Arc::new(weather_service));
+    service_handler.start_service(&mut arbiter, update_tx.clone(), Arc::new(news_service));
+
+    service_handler.start_handler(&mut arbiter);
     let service_handler = Arc::new(service_handler);
 
     HttpServer::new(move || {

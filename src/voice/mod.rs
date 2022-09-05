@@ -1,45 +1,30 @@
 use crate::{
-    voice::command::Command,
-    service::Service,
     settings::{Language, SETTINGS},
+    voice::command::Command,
 };
-use async_trait::async_trait;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use crossbeam::channel::{unbounded, Receiver};
-use erased_serde::Serialize;
-use futures::{channel::mpsc as futures_mpsc, SinkExt, StreamExt};
-use std::{
-    sync::{Arc, Mutex},
-    thread,
-};
-use tokio::{self, sync::mpsc, task};
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use std::thread;
+use tokio::{self, sync::mpsc};
 use webrtc_vad::Vad;
 
-mod command;
+pub mod command;
 mod number;
 
 // Wrap up the Deepspeech stream so we can send it to our thread.
 struct Model(deepspeech::Model);
 unsafe impl Send for Model {}
 
-type RequestTx =
-    futures_mpsc::UnboundedSender<(String, futures_mpsc::UnboundedSender<Option<String>>)>;
-
-pub struct CommandService {
-    request_tx: RequestTx,
-    tx: Option<futures_mpsc::Sender<Box<dyn Serialize + Send + Sync>>>,
+pub struct VoiceProcessing {
+    command_tx: mpsc::UnboundedSender<Command>,
 }
 
-#[async_trait]
-impl Service for CommandService {
-    fn set_sender(&mut self, tx: futures_mpsc::Sender<Box<dyn Serialize + Send + Sync>>) {
-        self.tx = Some(tx);
+impl VoiceProcessing {
+    pub fn new(command_tx: mpsc::UnboundedSender<Command>) -> Self {
+        Self { command_tx }
     }
 
-    async fn start_service(&mut self) {
+    pub fn start_listeners(&mut self) {
         let (audio_samples_tx, audio_samples_rx) = mpsc::unbounded_channel();
-        let (command_tx, command_rx) = mpsc::unbounded_channel();
 
         // Once we know we have a microphone, load up the Deepspeech models. We need the expected
         // sample rate for our model so we can confirm that the default microphone in this system
@@ -63,7 +48,7 @@ impl Service for CommandService {
         }
         let sample_rate;
         {
-            let mut model =
+            let model =
                 deepspeech::Model::load_from_files(&model_path).expect("couldn't load models");
             sample_rate = model.get_sample_rate() as u32;
         }
@@ -73,6 +58,7 @@ impl Service for CommandService {
             Err(e) => eprintln!("Voice listener terminated with error: {:?}", e),
         });
 
+        let command_tx = self.command_tx.clone();
         thread::spawn(move || {
             match process_audio(
                 &model_path,
@@ -85,29 +71,6 @@ impl Service for CommandService {
                 Err(e) => eprintln!("Voice processor terminated with error: {:?}", e),
             }
         });
-
-        self.run_commands(command_rx).await;
-    }
-
-    fn get_service_name(&self) -> String {
-        String::from("Command")
-    }
-}
-
-impl CommandService {
-    pub fn new(request_tx: RequestTx) -> Self {
-        Self {
-            tx: None,
-            request_tx,
-        }
-    }
-
-    async fn run_commands(&self, command_rx: mpsc::UnboundedReceiver<Command>) {
-        let mut command_rx = UnboundedReceiverStream::new(command_rx);
-        command_rx.for_each(|cmd| async move {
-            let result = cmd.run_command(self.request_tx.clone()).await;
-            println!("result: {:?}", result);
-        }).await;
     }
 }
 
@@ -183,7 +146,10 @@ fn process_audio(
     let mut num_samples = 0;
 
     loop {
-        let mut samps = audio_samples_rx.blocking_recv().ok_or("audio sample stream has closed")?;
+        let mut samps = audio_samples_rx
+            .blocking_recv()
+            .ok_or("audio sample stream has closed")?;
+
         // Since we're dropping the stream after we finish a decode, we need to check each
         // iteration to see if the stream needs to be re-created.
         if stream.is_none() {
@@ -253,9 +219,10 @@ fn process_audio(
                     let command = command_parser.parse(&val);
                     println!("Command: {:?}", command);
                     drop(stream_taken);
+
                     silent_count = 0;
                     if let Some(cmd) = command {
-                        command_tx.send(cmd);
+                        command_tx.send(cmd)?;
                     }
                 }
                 speech_found = false;

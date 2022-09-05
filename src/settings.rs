@@ -2,7 +2,7 @@ use crate::{
     news::{rss_news::RssNewsSource, NewsSource},
     weather::{TemperatureUnits, WeatherSource},
 };
-use actix_web::{http::header::ContentEncoding, web, HttpResponse};
+use actix_web::{web, HttpResponse};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
